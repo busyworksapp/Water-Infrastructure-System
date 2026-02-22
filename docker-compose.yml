@@ -1,0 +1,92 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    env_file:
+      - .env
+    environment:
+      - MQTT_BROKER_HOST=mqtt-broker
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - mqtt-broker
+    restart: unless-stopped
+
+  celery-worker:
+    build: ./backend
+    command: celery -A app.celery_app worker --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - backend
+      - redis
+    restart: unless-stopped
+
+  celery-beat:
+    build: ./backend
+    command: celery -A app.celery_app beat --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - backend
+      - redis
+    restart: unless-stopped
+
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./docker/mosquitto/config:/mosquitto/config
+      - mqtt_data:/mosquitto/data
+      - mqtt_log:/mosquitto/log
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    profiles: ["mysql"]
+    environment:
+      - MYSQL_ROOT_PASSWORD=water
+      - MYSQL_DATABASE=water_monitoring
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    profiles: ["postgres"]
+    environment:
+      - POSTGRES_USER=water
+      - POSTGRES_PASSWORD=water
+      - POSTGRES_DB=water_monitoring
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  mqtt_data:
+  mqtt_log:
+  redis_data:
+  mysql_data:
+  postgres_data:

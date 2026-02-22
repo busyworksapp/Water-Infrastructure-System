@@ -1,0 +1,105 @@
+# RandWater Terraform Configuration Variables
+# Copy to terraform.tfvars and fill in your values
+
+# AWS Configuration
+aws_region = "us-east-1"
+app_name   = "randwater"
+
+# Environment Selection
+environment = "production"  # dev, staging, or production
+
+# Common Tags
+tags = {
+  Project     = "RandWater"
+  Environment = "production"
+  Team        = "Infrastructure"
+  CostCenter  = "Engineering"
+  ManagedBy   = "Terraform"
+}
+
+################################################################################
+# VPC Configuration
+################################################################################
+
+vpc_cidr = "10.0.0.0/16"
+
+# Restrict to your IP/VPN in production
+allowed_cidr_blocks = [
+  # "203.0.113.0/32",  # Your IP address
+  "0.0.0.0/0"  # Open for testing - RESTRICT IN PRODUCTION
+]
+
+################################################################################
+# Kubernetes Configuration
+################################################################################
+
+kubernetes_version = "1.28"
+
+# Node configuration
+node_instance_types = ["t3.large"]
+node_desired_size   = 3
+node_min_size       = 1
+node_max_size       = 10
+
+# For production, use larger instances:
+# node_instance_types = ["m5.xlarge", "m5.2xlarge"]
+# node_desired_size   = 5
+# node_min_size       = 3
+# node_max_size       = 20
+
+################################################################################
+# RDS Database Configuration
+################################################################################
+
+postgres_version      = "15.4"
+db_name               = "randwater"
+db_username           = "postgres"
+db_password           = "CHANGE_ME_TO_STRONG_PASSWORD"  # Generate strong password
+db_instance_class     = "db.t3.large"
+db_allocated_storage  = 100
+
+# For production:
+# db_instance_class    = "db.r5.2xlarge"  # Memory optimized
+# db_allocated_storage = 500
+
+################################################################################
+# Redis Configuration
+################################################################################
+
+redis_version   = "7.0"
+redis_node_type = "cache.t3.medium"
+redis_num_nodes = 3
+
+# For production:
+# redis_node_type = "cache.r6g.xlarge"
+
+################################################################################
+# Monitoring and Logging
+################################################################################
+
+enable_prometheus  = true
+enable_logging     = true
+log_retention_days = 30
+
+################################################################################
+# Security
+################################################################################
+
+enable_encryption       = true
+enable_network_policies = true
+
+################################################################################
+# Backup and Disaster Recovery
+################################################################################
+
+backup_retention_days       = 30
+enable_read_replica         = true
+enable_cross_region_replica = false  # Set to true for multi-region setup
+
+################################################################################
+# Autoscaling
+################################################################################
+
+enable_autoscaling   = true
+scaling_target_cpu   = 70
+scaling_target_memory = 80

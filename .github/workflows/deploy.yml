@@ -1,0 +1,343 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Code quality and lint checks
+  quality:
+    runs-on: ubuntu-latest
+    name: Code Quality Checks
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pylint flake8 black isort bandit[toml] pytest-cov
+
+      - name: Run Black formatter check
+        run: |
+          black --check backend/app
+
+      - name: Run isort import check
+        run: |
+          isort --check-only backend/app
+
+      - name: Run Flake8 linter
+        run: |
+          flake8 backend/app --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 backend/app --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run Pylint
+        continue-on-error: true
+        run: |
+          pylint backend/app --fail-under=7.0 --max-line-length=127
+
+      - name: Run Bandit security checks
+        continue-on-error: true
+        run: |
+          bandit -r backend/app -f json -o bandit-report.json
+          cat bandit-report.json
+
+      - name: Set Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Lint frontend
+        continue-on-error: true
+        run: |
+          cd frontend-control-room
+          npm install
+          npm run lint || true
+
+  # Unit tests
+  test:
+    runs-on: ubuntu-latest
+    needs: quality
+    name: Run Tests
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Run backend tests with coverage
+        env:
+          DATABASE_MODE: postgres
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key-for-testing-only-32chars!
+        run: |
+          cd backend
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./backend/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  # Build Docker images
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    name: Build Docker Images
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (backend)
+        id: meta_backend
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch
+            type=sha
+
+      - name: Extract metadata (frontend)
+        id: meta_frontend
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch
+            type=sha
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta_backend.outputs.tags }}
+          labels: ${{ steps.meta_backend.outputs.labels }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend-control-room
+          push: true
+          tags: ${{ steps.meta_frontend.outputs.tags }}
+          labels: ${{ steps.meta_frontend.outputs.labels }}
+
+  # Security scanning
+  security:
+    runs-on: ubuntu-latest
+    needs: build
+    name: Security Scanning
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run Snyk dependency scanning
+        uses: snyk/actions/python-3.12@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+      - name: Run Trivy vulnerability scanning
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
+
+  # Deploy to staging
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: security
+    name: Deploy to Staging
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging.randwater.dev
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Deploy to staging cluster
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_STAGING }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          mkdir -p $HOME/.kube
+          echo "$KUBE_CONFIG" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+          
+          # Update image tags in Kubernetes manifests
+          sed -i "s|IMAGE_TAG|$(git rev-parse --short HEAD)|g" kubernetes/deployment.yaml
+          
+          # Apply deployments
+          kubectl apply -f kubernetes/deployment.yaml
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/randwater-backend -n default --timeout=5m
+          kubectl rollout status deployment/randwater-frontend -n default --timeout=5m
+
+  # Deploy to production
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: security
+    name: Deploy to Production
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://randwater.dev
+    concurrency: production
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Deploy to production cluster
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_PROD }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          mkdir -p $HOME/.kube
+          echo "$KUBE_CONFIG" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+          
+          # Create backup before deployment
+          kubectl exec -it postgres-0 -n default -- \
+            pg_dump -U postgres randwater > backup-$(date +%Y%m%d-%H%M%S).sql
+          
+          # Update image tags
+          sed -i "s|IMAGE_TAG|$(git rev-parse --short HEAD)|g" kubernetes/deployment.yaml
+          
+          # Apply with strategic merge patch for rolling updates
+          kubectl apply -f kubernetes/deployment.yaml
+          kubectl patch deployment randwater-backend -p \
+            '{"spec":{"template":{"metadata":{"annotations":{"deployment.kubernetes.io/revision":"'"$(date +%s)"'"}}}}}'
+
+      - name: Verify production deployment
+        run: |
+          kubectl rollout status deployment/randwater-backend -n default --timeout=10m
+          kubectl rollout status deployment/randwater-frontend -n default --timeout=10m
+          
+          # Health check
+          for i in {1..30}; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://randwater.dev/api/v1/monitoring/health)
+            if [ $HTTP_CODE -eq 200 ]; then
+              echo "✓ Production health check passed"
+              exit 0
+            fi
+            echo "Attempt $i/30: HTTP $HTTP_CODE, retrying..."
+            sleep 10
+          done
+          echo "✗ Production health check failed"
+          exit 1
+
+      - name: Notify deployment
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const status = context.payload.deployment_status?.state || 'unknown';
+            const message = `Production deployment ${status}: ${context.sha}`;
+            console.log(message);
+            github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.ref,
+              environment: 'production',
+              description: message,
+              auto_merge: false,
+              required_contexts: []
+            });

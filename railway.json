@@ -1,0 +1,19 @@
+{
+  "builder": "nixpacks",
+  "nixpacks": {
+    "python": "3.13",
+    "pythonReqs": ["poetry"],
+    "buildCommands": [
+      "pip install -r backend/requirements.txt"
+    ],
+    "startCmd": "cd backend && python scripts/deploy_railway.py && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+  },
+  "environments": {
+    "production": {
+      "variables": {
+        "ENVIRONMENT": "production",
+        "DEBUG": "false"
+      }
+    }
+  }
+}
