@@ -1,7 +1,7 @@
 """Prometheus metrics exporter for water monitoring system."""
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST, CollectorRegistry, REGISTRY
 from fastapi import Response
-from typing import Dict
+from typing import Dict, Optional
 import time
 
 from ..core.config import settings
@@ -9,8 +9,18 @@ from ..core.config import settings
 
 class MetricsCollector:
     """Collect and expose Prometheus metrics."""
+    _instance: Optional['MetricsCollector'] = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
     
     def __init__(self):
+        if hasattr(self, '_initialized'):
+            return
+        self._initialized = True
+        
         # HTTP metrics
         self.http_requests_total = Counter(
             'http_requests_total',
