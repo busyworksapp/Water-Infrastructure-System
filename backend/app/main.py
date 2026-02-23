@@ -62,6 +62,8 @@ _tcp_task = None
 async def lifespan(app: FastAPI):
     global _tcp_task
     logger.info("Starting %s", app_settings.APP_NAME)
+    logger.info("Database URL: %s", app_settings.DATABASE_URL[:50] + "..." if len(app_settings.DATABASE_URL) > 50 else app_settings.DATABASE_URL)
+    logger.info("Redis URL: %s", app_settings.REDIS_URL[:30] + "..." if len(app_settings.REDIS_URL) > 30 else app_settings.REDIS_URL)
 
     try:
         Base.metadata.create_all(bind=engine)
