@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 import secrets
 import os
 
@@ -74,8 +74,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_USER: int = 100
     RATE_LIMIT_PER_API_KEY: int = 1000
 
-    # CORS / trusted origins
-    CORS_ORIGINS: list[str] = ["*"]
+    # CORS / trusted origins (will be converted to list[str])
+    CORS_ORIGINS: Union[str, list[str]] = Field(default="*")
     
     # Monitoring & Observability
     PROMETHEUS_ENABLED: bool = True
@@ -119,12 +119,21 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, value):
+        # Return as-is if already a list
+        if isinstance(value, list):
+            return value
+        
         if isinstance(value, str):
             # Handle empty string
             if not value or value.strip() == "":
                 return ["*"]
             
             cleaned = value.strip()
+            
+            # Handle single wildcard
+            if cleaned == "*":
+                return ["*"]
+            
             # Handle JSON array format
             if cleaned.startswith("[") and cleaned.endswith("]"):
                 try:
@@ -137,7 +146,8 @@ class Settings(BaseSettings):
             # Handle comma-separated values
             origins = [v.strip().strip('"').strip("'") for v in cleaned.split(",") if v.strip()]
             return origins if origins else ["*"]
-        return value if value else ["*"]
+        
+        return ["*"]
     
     @field_validator("DATABASE_MODE", mode="before")
     @classmethod
