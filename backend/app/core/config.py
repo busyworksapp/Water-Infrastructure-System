@@ -2,7 +2,7 @@ from typing import Optional, Union
 import secrets
 import os
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -101,9 +101,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
     
-    def __init__(self, **data):
-        super().__init__(**data)
-        # Auto-initialize DATABASE_URL if not set
+    @model_validator(mode='after')
+    def set_database_url(self):
+        """Set DATABASE_URL from alternatives if not explicitly provided"""
         if not self.DATABASE_URL:
             if self.DATABASE_MODE.lower() == "postgres" and self.DATABASE_URL_POSTGRES:
                 self.DATABASE_URL = self.DATABASE_URL_POSTGRES
@@ -115,6 +115,7 @@ class Settings(BaseSettings):
                     self.DATABASE_URL = "postgresql://user:password@localhost:5432/water_monitoring"
                 else:
                     self.DATABASE_URL = "mysql+pymysql://user:password@localhost:3306/water_monitoring"
+        return self
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
