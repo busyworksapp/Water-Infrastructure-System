@@ -120,12 +120,24 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_origins(cls, value):
         if isinstance(value, str):
+            # Handle empty string
+            if not value or value.strip() == "":
+                return ["*"]
+            
             cleaned = value.strip()
+            # Handle JSON array format
             if cleaned.startswith("[") and cleaned.endswith("]"):
-                cleaned = cleaned[1:-1]
+                try:
+                    import json
+                    return json.loads(cleaned)
+                except:
+                    # Fallback to manual parsing
+                    cleaned = cleaned[1:-1]
+            
+            # Handle comma-separated values
             origins = [v.strip().strip('"').strip("'") for v in cleaned.split(",") if v.strip()]
-            return origins or ["*"]
-        return value
+            return origins if origins else ["*"]
+        return value if value else ["*"]
     
     @field_validator("DATABASE_MODE", mode="before")
     @classmethod
