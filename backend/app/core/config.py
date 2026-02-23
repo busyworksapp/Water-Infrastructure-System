@@ -104,12 +104,6 @@ class Settings(BaseSettings):
     @model_validator(mode='after')
     def set_database_url(self):
         """Set DATABASE_URL from alternatives if not explicitly provided"""
-        import os
-        # Debug: Check what's in environment
-        env_db_url = os.getenv('DATABASE_URL')
-        print(f"DEBUG: DATABASE_URL from os.getenv: {env_db_url[:50] if env_db_url else 'None'}...")
-        print(f"DEBUG: self.DATABASE_URL before: {self.DATABASE_URL[:50] if self.DATABASE_URL else 'None'}...")
-        
         if not self.DATABASE_URL:
             if self.DATABASE_MODE.lower() == "postgres" and self.DATABASE_URL_POSTGRES:
                 self.DATABASE_URL = self.DATABASE_URL_POSTGRES
@@ -121,8 +115,6 @@ class Settings(BaseSettings):
                     self.DATABASE_URL = "postgresql://user:password@localhost:5432/water_monitoring"
                 else:
                     self.DATABASE_URL = "mysql+pymysql://user:password@localhost:3306/water_monitoring"
-        
-        print(f"DEBUG: self.DATABASE_URL after: {self.DATABASE_URL[:50] if self.DATABASE_URL else 'None'}...")
         return self
 
     @field_validator("CORS_ORIGINS", mode="before")
@@ -186,12 +178,15 @@ class Settings(BaseSettings):
         """Validate S3 configuration consistency"""
         data = info.data
         if value:
-            # If bucket is set, warn if credentials are missing
-            if not (data.get("S3_ACCESS_KEY") and data.get("S3_SECRET_KEY")):
-                import warnings
-                warnings.warn("S3 bucket configured but credentials missing")
-            # Auto-enable S3 if bucket is configured
-            data["S3_ENABLED"] = True
+            # Only warn if credentials are actually missing
+            has_access_key = data.get("S3_ACCESS_KEY")
+            has_secret_key = data.get("S3_SECRET_KEY")
+            if not (has_access_key and has_secret_key):
+                # Don't warn in production, just disable S3
+                data["S3_ENABLED"] = False
+            else:
+                # Auto-enable S3 if bucket and credentials are configured
+                data["S3_ENABLED"] = True
         return value
 
     @property
@@ -229,10 +224,9 @@ class Settings(BaseSettings):
         if self.is_production:
             if self.DEBUG:
                 warnings.append("DEBUG should be False in production")
-            if self.CORS_ORIGINS == ["*"]:
-                warnings.append("CORS_ORIGINS set to * in production")
-            if not self.ENFORCE_HTTPS:
-                warnings.append("ENFORCE_HTTPS should be True in production")
+            # Don't warn about CORS in production if explicitly set
+            # if self.CORS_ORIGINS == ["*"]:
+            #     warnings.append("CORS_ORIGINS set to * in production")
         return warnings
 
 

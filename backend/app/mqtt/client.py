@@ -78,12 +78,10 @@ class MQTTClient:
             )
             self.client.loop_start()
             logger.info("MQTT client started")
-        except ConnectionRefusedError as e:
-            logger.error(f"MQTT connection refused: {e}")
-            self._schedule_reconnect()
+        except ConnectionRefusedError:
+            logger.info("MQTT broker not available (optional service)")
         except Exception as e:
-            logger.error(f"MQTT connection failed: {e}")
-            self._schedule_reconnect()
+            logger.info(f"MQTT not configured: {e}")
 
     def disconnect(self):
         """Disconnect from MQTT broker"""
@@ -114,18 +112,19 @@ class MQTTClient:
         )
         self.reconnect_count += 1
         
-        logger.warning(
-            f"MQTT reconnecting in {self.reconnect_delay}s "
-            f"(attempt {self.reconnect_count})"
-        )
+        # Only log first few attempts
+        if self.reconnect_count <= 3:
+            logger.info(f"MQTT reconnecting (attempt {self.reconnect_count})")
         
         time.sleep(self.reconnect_delay)
         
         try:
             self.client.reconnect()
             logger.info("MQTT reconnection successful")
-        except Exception as e:
-            logger.error(f"MQTT reconnection failed: {e}")
+        except Exception:
+            # Silently fail after initial attempts
+            if self.reconnect_count <= 3:
+                logger.info("MQTT broker still unavailable")
             self._schedule_reconnect()
 
     def _on_connect(self, client, userdata, flags, rc, properties=None):

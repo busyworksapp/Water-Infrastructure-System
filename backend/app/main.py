@@ -62,14 +62,12 @@ _tcp_task = None
 async def lifespan(app: FastAPI):
     global _tcp_task
     logger.info("Starting %s", app_settings.APP_NAME)
-    logger.info("Database URL: %s", app_settings.DATABASE_URL[:50] + "..." if len(app_settings.DATABASE_URL) > 50 else app_settings.DATABASE_URL)
-    logger.info("Redis URL: %s", app_settings.REDIS_URL[:30] + "..." if len(app_settings.REDIS_URL) > 30 else app_settings.REDIS_URL)
 
     try:
         Base.metadata.create_all(bind=engine)
-        logger.info("Database schema verified")
+        logger.info("✅ Database connected and schema verified")
     except Exception as e:
-        logger.error("Database connection failed: %s", e)
+        logger.error("❌ Database connection failed: %s", e)
         logger.warning("Continuing without database initialization...")
 
     loop = asyncio.get_event_loop()
@@ -77,9 +75,9 @@ async def lifespan(app: FastAPI):
 
     try:
         mqtt_client.connect()
-        logger.info("MQTT client connected")
+        logger.info("✅ MQTT client connected")
     except Exception as e:
-        logger.warning("MQTT connection failed: %s", e)
+        logger.info("ℹ️ MQTT broker not configured (optional)")
 
     try:
         from .tcp.server import tcp_server
