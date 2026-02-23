@@ -63,13 +63,21 @@ async def lifespan(app: FastAPI):
     global _tcp_task
     logger.info("Starting %s", app_settings.APP_NAME)
 
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database schema verified")
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database schema verified")
+    except Exception as e:
+        logger.error("Database connection failed: %s", e)
+        logger.warning("Continuing without database initialization...")
 
     loop = asyncio.get_event_loop()
     ws_manager.set_event_loop(loop)
 
-    mqtt_client.connect()
+    try:
+        mqtt_client.connect()
+        logger.info("MQTT client connected")
+    except Exception as e:
+        logger.warning("MQTT connection failed: %s", e)
 
     try:
         from .tcp.server import tcp_server
