@@ -1,9 +1,13 @@
 """Advanced machine learning anomaly detection for water infrastructure monitoring."""
-import numpy as np
+try:
+    import numpy as np
+    from sklearn.ensemble import IsolationForest
+    from sklearn.preprocessing import StandardScaler
+    HAS_ML = True
+except ImportError:
+    HAS_ML = False
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
 import logging
 
 from ..core.database import SessionLocal

@@ -1,7 +1,11 @@
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from typing import Dict, List
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
 from ..models.sensor import Sensor, SensorReading
 
 class PredictiveMaintenanceService:
@@ -73,7 +77,10 @@ class PredictiveMaintenanceService:
         if not quality_scores:
             return 0.0
         
-        avg_quality = np.mean(quality_scores)
+        if HAS_NUMPY:
+            avg_quality = np.mean(quality_scores)
+        else:
+            avg_quality = sum(quality_scores) / len(quality_scores)
         
         if avg_quality < 0.7:
             return 1.0

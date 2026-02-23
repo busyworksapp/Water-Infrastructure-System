@@ -1,8 +1,12 @@
 from typing import Tuple, Optional, List
-import numpy as np
-from sklearn.ensemble import IsolationForest, RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
+try:
+    import numpy as np
+    from sklearn.ensemble import IsolationForest, RandomForestClassifier
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.model_selection import train_test_split
+    HAS_ML = True
+except ImportError:
+    HAS_ML = False
 import pickle
 import os
 import logging

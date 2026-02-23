@@ -4,7 +4,11 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 from geoalchemy2.functions import ST_Distance, ST_DWithin, ST_Buffer, ST_Intersects
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
 import logging
 
 from ..models.pipeline import Pipeline
@@ -67,8 +71,12 @@ class GeospatialAnalysisService:
                 continue
             
             # Calculate average pressure difference
-            avg_a = np.mean([r.value for r in readings_a])
-            avg_b = np.mean([r.value for r in readings_b])
+            if HAS_NUMPY:
+                avg_a = np.mean([r.value for r in readings_a])
+                avg_b = np.mean([r.value for r in readings_b])
+            else:
+                avg_a = sum(r.value for r in readings_a) / len(readings_a)
+                avg_b = sum(r.value for r in readings_b) / len(readings_b)
             pressure_drop = avg_a - avg_b
             
             # Expected pressure drop based on distance and flow
@@ -177,7 +185,10 @@ class GeospatialAnalysisService:
                 else:
                     sensor_health_scores.append(0.1)
         
-        avg_health = np.mean(sensor_health_scores) if sensor_health_scores else 0.0
+        if HAS_NUMPY:
+            avg_health = np.mean(sensor_health_scores) if sensor_health_scores else 0.0
+        else:
+            avg_health = sum(sensor_health_scores) / len(sensor_health_scores) if sensor_health_scores else 0.0
         
         # Overall health score
         health_score = (

@@ -3,7 +3,11 @@ from typing import Any, Dict, List, Tuple
 import logging
 import math
 
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
 from sqlalchemy.orm import Session
 
 from ..core.database import SessionLocal
@@ -73,8 +77,12 @@ class AnomalyDetector:
             return False, 0.0
 
         values = [float(row[0]) for row in historical]
-        mean = np.mean(values)
-        std = np.std(values)
+        if HAS_NUMPY:
+            mean = np.mean(values)
+            std = np.std(values)
+        else:
+            mean = sum(values) / len(values)
+            std = (sum((x - mean) ** 2 for x in values) / len(values)) ** 0.5
         if std <= 1e-9:
             return False, 0.0
 
@@ -134,7 +142,11 @@ class AnomalyDetector:
         if len(history) < 3:
             return False, 0.0
 
-        baseline = float(np.mean([float(row[0]) for row in history]))
+        if HAS_NUMPY:
+            baseline = float(np.mean([float(row[0]) for row in history]))
+        else:
+            vals = [float(row[0]) for row in history]
+            baseline = sum(vals) / len(vals)
         if baseline <= 0:
             return False, 0.0
 
@@ -165,8 +177,12 @@ class AnomalyDetector:
             return False, 0.0
 
         values = [float(row[0]) for row in history]
-        mean = float(np.mean(values))
-        std = float(np.std(values))
+        if HAS_NUMPY:
+            mean = float(np.mean(values))
+            std = float(np.std(values))
+        else:
+            mean = sum(values) / len(values)
+            std = (sum((x - mean) ** 2 for x in values) / len(values)) ** 0.5
         if std <= 1e-9:
             return False, 0.0
 
