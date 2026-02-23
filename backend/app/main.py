@@ -83,9 +83,14 @@ async def lifespan(app: FastAPI):
         from .tcp.server import tcp_server
 
         _tcp_task = asyncio.create_task(tcp_server.start())
-        logger.info("TCP server started on %s:%s", app_settings.TCP_HOST, app_settings.TCP_PORT)
+        logger.info("✅ TCP server started on %s:%s", app_settings.TCP_HOST, app_settings.TCP_PORT)
+    except OSError as e:
+        if "address already in use" in str(e).lower():
+            logger.info("ℹ️ TCP port %s already in use (optional service)", app_settings.TCP_PORT)
+        else:
+            logger.warning("TCP server failed: %s", e)
     except Exception as exc:
-        logger.warning("TCP server failed to start: %s", exc)
+        logger.info("ℹ️ TCP server not started (optional service)")
 
     yield
 
