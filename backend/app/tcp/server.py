@@ -69,11 +69,19 @@ class TCPServer:
             db.close()
 
     async def start(self):
-        self.server = await asyncio.start_server(self.handle_client, self.host, self.port)
-        sockets = ", ".join(str(sock.getsockname()) for sock in self.server.sockets or [])
-        logger.info("TCP server listening on %s", sockets)
-        async with self.server:
-            await self.server.serve_forever()
+        try:
+            self.server = await asyncio.start_server(self.handle_client, self.host, self.port)
+            sockets = ", ".join(str(sock.getsockname()) for sock in self.server.sockets or [])
+            logger.info("TCP server listening on %s", sockets)
+            async with self.server:
+                await self.server.serve_forever()
+        except OSError as e:
+            if e.errno == 98 or "address already in use" in str(e).lower():
+                logger.info("TCP port %s already in use, skipping TCP server", self.port)
+            else:
+                logger.warning("TCP server failed to start: %s", e)
+        except Exception as e:
+            logger.warning("TCP server error: %s", e)
 
     def stop(self):
         if self.server:
