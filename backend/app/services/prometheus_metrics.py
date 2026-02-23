@@ -1,5 +1,5 @@
 """Prometheus metrics exporter for water monitoring system."""
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST, CollectorRegistry, REGISTRY
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST, CollectorRegistry
 from fastapi import Response
 from typing import Dict, Optional
 import time
@@ -10,10 +10,12 @@ from ..core.config import settings
 class MetricsCollector:
     """Collect and expose Prometheus metrics."""
     _instance: Optional['MetricsCollector'] = None
+    _registry: Optional[CollectorRegistry] = None
     
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            cls._registry = CollectorRegistry()
         return cls._instance
     
     def __init__(self):
@@ -25,128 +27,148 @@ class MetricsCollector:
         self.http_requests_total = Counter(
             'http_requests_total',
             'Total HTTP requests',
-            ['method', 'endpoint', 'status']
+            ['method', 'endpoint', 'status'],
+            registry=self._registry
         )
         
         self.http_request_duration = Histogram(
             'http_request_duration_seconds',
             'HTTP request duration in seconds',
-            ['method', 'endpoint']
+            ['method', 'endpoint'],
+            registry=self._registry
         )
         
         # Sensor metrics
         self.sensor_readings_total = Counter(
             'sensor_readings_total',
             'Total sensor readings received',
-            ['sensor_id', 'protocol']
+            ['sensor_id', 'protocol'],
+            registry=self._registry
         )
         
         self.sensor_readings_anomalies = Counter(
             'sensor_readings_anomalies_total',
             'Total anomalous readings detected',
-            ['sensor_id', 'detection_method']
+            ['sensor_id', 'detection_method'],
+            registry=self._registry
         )
         
         self.active_sensors = Gauge(
             'active_sensors_total',
             'Number of active sensors',
-            ['municipality_id']
+            ['municipality_id'],
+            registry=self._registry
         )
         
         # Alert metrics
         self.alerts_total = Counter(
             'alerts_total',
             'Total alerts generated',
-            ['municipality_id', 'severity', 'alert_type']
+            ['municipality_id', 'severity', 'alert_type'],
+            registry=self._registry
         )
         
         self.active_alerts = Gauge(
             'active_alerts_total',
             'Number of active alerts',
-            ['municipality_id', 'severity']
+            ['municipality_id', 'severity'],
+            registry=self._registry
         )
         
         # WebSocket metrics
         self.websocket_connections = Gauge(
             'websocket_connections_active',
             'Number of active WebSocket connections',
-            ['municipality_id']
+            ['municipality_id'],
+            registry=self._registry
         )
         
         # Database metrics
         self.db_query_duration = Histogram(
             'db_query_duration_seconds',
             'Database query duration in seconds',
-            ['query_type']
+            ['query_type'],
+            registry=self._registry
         )
         
         self.db_connections = Gauge(
             'db_connections_active',
-            'Number of active database connections'
+            'Number of active database connections',
+            registry=self._registry
         )
         
         # MQTT metrics
         self.mqtt_messages_received = Counter(
             'mqtt_messages_received_total',
             'Total MQTT messages received',
-            ['topic']
+            ['topic'],
+            registry=self._registry
         )
         
         self.mqtt_messages_processed = Counter(
             'mqtt_messages_processed_total',
             'Total MQTT messages successfully processed',
-            ['topic']
+            ['topic'],
+            registry=self._registry
         )
         
         self.mqtt_messages_failed = Counter(
             'mqtt_messages_failed_total',
             'Total MQTT messages that failed processing',
-            ['topic', 'error_type']
+            ['topic', 'error_type'],
+            registry=self._registry
         )
         
         # Celery metrics
         self.celery_tasks_total = Counter(
             'celery_tasks_total',
             'Total Celery tasks executed',
-            ['task_name', 'status']
+            ['task_name', 'status'],
+            registry=self._registry
         )
         
         self.celery_task_duration = Histogram(
             'celery_task_duration_seconds',
             'Celery task duration in seconds',
-            ['task_name']
+            ['task_name'],
+            registry=self._registry
         )
         
         # System metrics
         self.system_uptime = Gauge(
             'system_uptime_seconds',
-            'System uptime in seconds'
+            'System uptime in seconds',
+            registry=self._registry
         )
         
         self.data_quality_score = Gauge(
             'data_quality_score',
             'Overall data quality score',
-            ['municipality_id']
+            ['municipality_id'],
+            registry=self._registry
         )
         
         # Cache metrics
         self.cache_hits = Counter(
             'cache_hits_total',
             'Total cache hits',
-            ['cache_type']
+            ['cache_type'],
+            registry=self._registry
         )
         
         self.cache_misses = Counter(
             'cache_misses_total',
             'Total cache misses',
-            ['cache_type']
+            ['cache_type'],
+            registry=self._registry
         )
         
         # IoT Protocol metrics
         self.iot_protocol_messages = Counter(
             'iot_protocol_messages_total',
             'Total IoT protocol messages',
-            ['protocol', 'status']
+            ['protocol', 'status'],
+            registry=self._registry
         )
         
         self.start_time = time.time()
@@ -258,7 +280,7 @@ class MetricsCollector:
         self.update_system_uptime()
         
         return Response(
-            content=generate_latest(),
+            content=generate_latest(self._registry),
             media_type=CONTENT_TYPE_LATEST
         )
 
