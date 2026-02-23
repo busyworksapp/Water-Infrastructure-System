@@ -104,6 +104,12 @@ class Settings(BaseSettings):
     @model_validator(mode='after')
     def set_database_url(self):
         """Set DATABASE_URL from alternatives if not explicitly provided"""
+        import os
+        # Debug: Check what's in environment
+        env_db_url = os.getenv('DATABASE_URL')
+        print(f"DEBUG: DATABASE_URL from os.getenv: {env_db_url[:50] if env_db_url else 'None'}...")
+        print(f"DEBUG: self.DATABASE_URL before: {self.DATABASE_URL[:50] if self.DATABASE_URL else 'None'}...")
+        
         if not self.DATABASE_URL:
             if self.DATABASE_MODE.lower() == "postgres" and self.DATABASE_URL_POSTGRES:
                 self.DATABASE_URL = self.DATABASE_URL_POSTGRES
@@ -115,6 +121,8 @@ class Settings(BaseSettings):
                     self.DATABASE_URL = "postgresql://user:password@localhost:5432/water_monitoring"
                 else:
                     self.DATABASE_URL = "mysql+pymysql://user:password@localhost:3306/water_monitoring"
+        
+        print(f"DEBUG: self.DATABASE_URL after: {self.DATABASE_URL[:50] if self.DATABASE_URL else 'None'}...")
         return self
 
     @field_validator("CORS_ORIGINS", mode="before")
