@@ -2,7 +2,7 @@ from .municipality import Municipality
 from .user import User, Role, Permission
 from .pipeline import Pipeline
 from .sensor import Sensor, SensorType, SensorReading
-from .alert import Alert, Incident
+from .alert import Alert, Incident, AlertSeverity, AlertStatus, IncidentStatus
 from .maintenance import MaintenanceLog
 from .device_auth import DeviceAuthentication
 from .audit import AuditLog
@@ -18,8 +18,8 @@ from .user_preference import UserPreference
 __all__ = [
     "Municipality", "User", "Role", "Permission",
     "Pipeline", "Sensor", "SensorType", "SensorReading",
-    "Alert", "Incident", "MaintenanceLog",
-    "DeviceAuthentication", "AuditLog", "SystemSetting",
+    "Alert", "Incident", "AlertSeverity", "AlertStatus", "IncidentStatus",
+    "MaintenanceLog", "DeviceAuthentication", "AuditLog", "SystemSetting",
     "DynamicRule", "NotificationChannel", "ProtocolConfiguration",
     "SchemaExpansion", "UserPreference"
 ]
