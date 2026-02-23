@@ -2,8 +2,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime, timedelta
 from typing import Dict
-import psutil
 import logging
+
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    logging.warning("psutil not available - system metrics disabled")
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +41,8 @@ class MonitoringService:
     
     def _check_system_resources(self) -> Dict:
         """Check system resource usage"""
+        if not PSUTIL_AVAILABLE:
+            return {"status": "unknown", "error": "psutil not available"}
         try:
             cpu_percent = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
@@ -95,6 +103,8 @@ class MonitoringService:
     
     def get_performance_metrics(self) -> Dict:
         """Get performance metrics"""
+        if not PSUTIL_AVAILABLE:
+            return {"error": "psutil not available"}
         try:
             return {
                 "cpu": {
