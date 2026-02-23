@@ -142,12 +142,15 @@ async def add_metrics_middleware(request: Request, call_next):
     
     # Record metrics only if metrics service is available
     if app_settings.PROMETHEUS_ENABLED:
-        metrics_service.record_http_request(
-            method=request.method,
-            endpoint=request.url.path,
-            status=response.status_code,
-            duration=duration
-        )
+        try:
+            metrics_service.record_http_request(
+                method=request.method,
+                endpoint=request.url.path,
+                status_code=response.status_code,
+                duration=duration
+            )
+        except Exception:
+            pass  # Don't let metrics recording break the app
     
     return response
 
