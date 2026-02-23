@@ -79,13 +79,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.info("ℹ️ MQTT broker not configured (optional)")
 
-    try:
-        from .tcp.server import tcp_server
-
-        _tcp_task = asyncio.create_task(tcp_server.start())
-        logger.info("ℹ️ TCP server task started")
-    except Exception as exc:
-        logger.info("ℹ️ TCP server not started (optional service)")
+    # TCP server disabled to prevent port conflicts in Railway
+    # Use HTTP ingestion endpoint instead: POST /api/v1/ingest/http
+    logger.info("ℹ️ TCP server disabled (use HTTP ingestion endpoint)")
+    # try:
+    #     from .tcp.server import tcp_server
+    #     _tcp_task = asyncio.create_task(tcp_server.start())
+    #     logger.info("ℹ️ TCP server task started")
+    # except Exception as exc:
+    #     logger.info("ℹ️ TCP server not started (optional service)")
 
     yield
 
