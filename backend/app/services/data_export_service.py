@@ -8,9 +8,8 @@ import json
 import io
 
 from ..models.sensor import Sensor, SensorReading
-from ..models.alert import Alert
-from ..models.incident import Incident
-from ..models.maintenance_log import MaintenanceLog
+from ..models.alert import Alert, Incident
+from ..models.maintenance import MaintenanceLog
 
 class DataExportService:
     """Export system data in various formats."""
