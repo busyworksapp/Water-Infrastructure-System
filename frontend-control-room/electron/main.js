@@ -18,7 +18,7 @@ function createWindow() {
     title: 'National Water Infrastructure Monitoring - Control Room'
   });
 
-  if (isDev) {
+  if (isDev || !app.isPackaged) {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {

@@ -1,0 +1,50 @@
+{
+  "name": "RandWater IoT Platform",
+  "description": "Production-ready multi-tenant IoT water monitoring platform with real-time analytics",
+  "services": [
+    {
+      "name": "backend",
+      "source": {
+        "repo": "your-username/randwater",
+        "rootDirectory": "backend"
+      },
+      "env": {
+        "DATABASE_URL": {
+          "description": "MySQL database connection string",
+          "required": true
+        },
+        "REDIS_URL": {
+          "description": "Redis connection string",
+          "required": true
+        },
+        "SECRET_KEY": {
+          "description": "Secret key for JWT tokens",
+          "generate": true
+        },
+        "ENVIRONMENT": {
+          "value": "production"
+        },
+        "PORT": {
+          "value": "8000"
+        }
+      }
+    },
+    {
+      "name": "frontend",
+      "source": {
+        "repo": "your-username/randwater",
+        "rootDirectory": "frontend-web"
+      },
+      "env": {
+        "VITE_API_URL": {
+          "description": "Backend API URL",
+          "required": true
+        },
+        "VITE_WS_URL": {
+          "description": "Backend WebSocket URL",
+          "required": true
+        }
+      }
+    }
+  ]
+}

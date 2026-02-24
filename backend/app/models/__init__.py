@@ -14,6 +14,7 @@ from .system import (
     SchemaExpansion,
 )
 from .user_preference import UserPreference
+from .webhook import Webhook, WebhookDelivery
 
 __all__ = [
     "Municipality", "User", "Role", "Permission",
@@ -21,5 +22,5 @@ __all__ = [
     "Alert", "Incident", "AlertSeverity", "AlertStatus", "IncidentStatus",
     "MaintenanceLog", "DeviceAuthentication", "AuditLog", "SystemSetting",
     "DynamicRule", "NotificationChannel", "ProtocolConfiguration",
-    "SchemaExpansion", "UserPreference"
+    "SchemaExpansion", "UserPreference", "Webhook", "WebhookDelivery"
 ]
